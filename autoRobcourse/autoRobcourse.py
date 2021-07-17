@@ -477,7 +477,7 @@ def menu():
     print('输入错误，请重新输入。')
 
 def main():
-  print('温馨提示：本程序没有鲁棒性，不合法的输入极易导致崩溃，请慎重输入。')
+  print('温馨提示：本程序没有鲁棒性，不合法(或合法)的输入极易导致崩溃，请慎重输入。')
   GetUserImf()
   print('爬取信息中……')
   url=GetCourseText()
