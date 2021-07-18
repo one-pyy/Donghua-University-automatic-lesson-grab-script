@@ -1,3 +1,3 @@
 # Donghua-University-automatic-lesson-grab-script
 只有粗略调试，实战可能要下学期开学
-本程序提供自动排课抢课功能
+自动排课不能抢课的抢课脚本
