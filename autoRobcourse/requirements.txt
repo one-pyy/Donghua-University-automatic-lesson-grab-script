@@ -2,3 +2,4 @@ re
 numpy
 prettytable
 PyExecJS
+requests
