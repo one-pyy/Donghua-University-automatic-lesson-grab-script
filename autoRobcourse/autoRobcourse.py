@@ -251,9 +251,10 @@ def getCookie():
   }
   url=req.post('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers,data=data)
 
-def GetUserImf():#获取用户信息，生成请求头
+def GetUserImf():#获取用户信息，生成请求头，得到cookie
   glb.sNo=input("请输入您的学号: ")
   glb.sSec=input('请输入您的密码: ')
+  glb.seme=input('输入选课学期（例如：20212022a 代表2021-2022学年 第1学期）: ')
   glb.headers={
     'Host':'jwgl.dhu.edu.cn',
     'Connection':'keep-alive',
@@ -274,7 +275,7 @@ def GetUserImf():#获取用户信息，生成请求头
 def GetCourseText():#获取选课列表
   data={
     'studNo':glb.sNo,
-    'scSemester':'20212022a'
+    'scSemester':glb.seme
   }
   url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initTSCourses',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
   if url.status_code != requests.codes.ok:
@@ -284,7 +285,7 @@ def GetCourseText():#获取选课列表
     else:
       exit(0)
   elif url.json()['success']==0:
-    print('cookie错误(大概)')
+    print('错误(大概)')
     url=GetCourseText()
   else:
     print('已获取课程列表')
@@ -415,8 +416,8 @@ def SetBusyTime():
 def autoRob():
   while 1:
     a=input('几毫秒抢一次？\n')
-    if a<random.random()*3000:
-      print('不合适吧，再输一个')
+    if a<random.random()*6000:
+      print('太小了，不合适吧~再输一个: ')
   a/=1000
   while 1:
     for id in glb.nsl:
@@ -427,6 +428,7 @@ def autoRob():
       url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/scSubmit',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
       if url.json()['success']==1:
         glb.nsl.remove(id)
+        print('抢到了一门课\n{}'.format(glb.allinf[id]))
       time.sleep(a)
     if len(glb.nsl)==0:
       print('全部抢完了')
@@ -466,7 +468,6 @@ def menu():
     autoArrange()
   elif choose=='9':
     print('因政策原因，本功能暂不开放')
-    #autoRob()
   elif choose=='10':
     print('请把以下内容保存在一个你喜欢的txt文件里，下次进入菜单时选择5粘贴')
     for each in glb.nl:
@@ -477,7 +478,7 @@ def menu():
     print('输入错误，请重新输入。')
 
 def main():
-  print('温馨提示：本程序没有鲁棒性，不合法(或合法)的输入极易导致崩溃，请慎重输入。')
+  print('温馨提示：本程序没有鲁棒性，不合法（或合法）的输入极易导致崩溃，请慎重输入。')
   GetUserImf()
   print('爬取信息中……')
   url=GetCourseText()
