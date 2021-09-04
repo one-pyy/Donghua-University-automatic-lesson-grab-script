@@ -1,23 +1,59 @@
 #import code
 import re
+import pickle
+import getpass
 #import sys
 import numpy as np
 import requests
 import random
 import time
+import os
 from functools import cmp_to_key
 from prettytable import PrettyTable as pt
 import getPass
 
 def glb():
-  glb.cc={}#ChoosenCourse
-  glb.ncc={}#NoChoosenCourse
-  glb.all={}#allCourses
-  glb.allinf={}#allCourseInf
-  glb.got={}
   glb.nl=[]#needList
   glb.nsl=set()#needSelectList
   glb.table=classTable()
+  glb.imf : map
+
+def readToInit():
+  def read(name):
+    with open("cache\\"+name+".pkl",'rb') as file:
+      rq  = pickle.loads(file.read())
+    return rq
+  if os.path.exists("cache\\imf.pkl"):
+    imf=read("imf")
+    if os.path.exists("cache\\imf.pkl") and imf['stuNo']==glb.imf['stuNo'] and glb.imf['turn']==glb.imf['turn']:
+      glb.cc=read('cc')
+      glb.ncc=read('ncc')
+      glb.all=read('all')
+      glb.allimf=read('allimf')
+      glb.got=read('got')
+      return 1
+  glb.cc={}#ChoosenCourse
+  glb.ncc={}#NoChoosenCourse
+  glb.all={}#allCourses
+  glb.allimf={}#allCourseInf
+  glb.got={}
+  return 0
+
+def save():
+  def wr(things,name):
+    path="cache\\"+name+".pkl"
+    if os.path.exists(path)!=True:
+      open(path, 'w').close()
+    output_hal = open(path, 'wb')
+    str = pickle.dumps(things)
+    output_hal.write(str)
+    output_hal.close()
+  wr(glb.cc,"cc")
+  wr(glb.ncc,"ncc")
+  wr(glb.all,"all")
+  wr(glb.allimf,"allimf")
+  wr(glb.got,"got")
+  wr(glb.imf,"imf")
 
 req=requests.session()
 
@@ -72,7 +108,7 @@ class courseImfor:#某节课的信息
       if map[ct+str(k)]==None:
         break
       self.t.append(t(courseImfor._getTime(map[ct+str(k)])+courseImfor._getWeek(map[uw+str(k)])))
-    glb.allinf[self.id]=self
+    glb.allimf[self.id]=self
 
   def getTime(self):
     return t
@@ -95,22 +131,22 @@ class courseImfor:#某节课的信息
     return "\t课程名：{}\t课程id：{}\t教师：{}\t录取情况：{}/{}\n\t时间：{}\n".format(self.name,self.id,self.Tname,self.enroll,self.max,s)
 
 class course:#某种课的信息
-  def __init__(self,name,turn,code,got,inf=None):
+  def __init__(self,name,turn,code,got,imf=None):
     super().__init__()
-    self.inf=[]
+    self.imf=[]
     self.turn=turn
     self.got=got
     self.code=code
     self.name=name
-    if inf==None:
+    if imf==None:
       self.getable=self._getInf()
     else:
-      self.inf.append(courseImfor(inf,1))
+      self.imf.append(courseImfor(imf,1))
       self.getable=0
   
   def getTime(self):#only
     s=[]
-    for each in self.inf:
+    for each in self.imf:
       s+=each.getTime()
     return s
   
@@ -121,7 +157,7 @@ class course:#某种课的信息
     elif self.getable==0 and self.got==1:
       s+='\t已选\n'
     else:
-      for each in self.inf:
+      for each in self.imf:
         s+=each.getdoc()
     return s
   
@@ -134,14 +170,14 @@ class course:#某种课的信息
     url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initACC',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
     courseList=url.json()['aaData']
     for each in courseList:
-      if each['priorMajors']!='延安路校区':#####
-        self.inf.append(courseImfor(each))
+      if each['priorMajors'].count('延安')==0:#####
+        self.imf.append(courseImfor(each))
     return 1
 
 class classTable:#dfs操作台
   def __init__(self):
     super().__init__()
-    self.ct=np.full((13,5,17),0,dtype=bool)
+    self.ct=np.full((13,5,18),0,dtype=bool)
   
   def set1_f(self,ci):
     for i in ci:
@@ -149,7 +185,7 @@ class classTable:#dfs操作台
         for time in range(i.st,i.ed):
           self.ct[time][i.week][week]=1
   
-  def set1(self,ci):#ci:courseinfor
+  def set1(self,ci):#ci:courseimfor
     for i in ci:
       for week in range(i.ws,i.we):
         for time in range(i.st,i.ed):
@@ -171,7 +207,7 @@ class classTable:#dfs操作台
     r=[]
     for day in range(0,5):
       s=''
-      for week in range(0,17):
+      for week in range(0,18):
         if self.ct[row][day][week]==1:
           s+='#'
         else:
@@ -253,7 +289,7 @@ def getCookie():
 
 def GetUserImf():#获取用户信息，生成请求头，得到cookie
   glb.sNo=input("请输入您的学号: ")
-  glb.sSec=input('请输入您的密码: ')
+  glb.sSec=getpass.getpass('请输入您的密码: ')
   glb.seme=input('输入选课学期（例如：20212022a 代表2021-2022学年 第1学期）: ')
   glb.headers={
     'Host':'jwgl.dhu.edu.cn',
@@ -269,8 +305,13 @@ def GetUserImf():#获取用户信息，生成请求头，得到cookie
     'Accept-Encoding':'gzip, deflate',
     'Accept-Language':'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
   }
+  print("登录中")
   getSalt()
   getCookie()
+  glb.imf={
+    "stuNo":glb.sNo,
+    "turn":glb.seme
+  }
 
 def GetCourseText():#获取选课列表
   data={
@@ -278,6 +319,7 @@ def GetCourseText():#获取选课列表
     'scSemester':glb.seme
   }
   url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initTSCourses',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
+  print(url.status_code)
   if url.status_code != requests.codes.ok:
     ans=input("与教务处链接错误，请再试一次吧(是/否)")
     if ans!='是':
@@ -292,7 +334,14 @@ def GetCourseText():#获取选课列表
   return url
 
 def GetCourseList(list):#完善课程信息并进行分类
-  map=list["tsCourseMapNoCagegory"]
+  def getCourseClass(list):
+    map=list["tsCourseMapNoCagegory"]
+    categorys=list['courseCategory']
+    for category in categorys:
+      url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSCC',headers=glb.headers,data={'smallSort':category},cookies=req.cookies.get_dict())
+      map[category]=url.json()['sccs']
+    return map
+  map=getCourseClass(list)
   got=list["crScores"]
   tmp=0
   maxx=0
@@ -300,10 +349,10 @@ def GetCourseList(list):#完善课程信息并进行分类
     for c in map[key]:
       maxx+=1
   for key in map:
-    if key.count("选修")!=0:
+    if key.count("必修")==0:
       for c in map[key]:
         tmp+=1
-        glb.cc[c['courseCode']]=course(c['courseName'],c['yearTerm'],c['courseCode'],c['courseCode'] in got)
+        glb.cc[c['courseCode']]=course(c['courseName'],c['yearTerm'] if 'yearTerm' in c else "无推荐选修时间",c['courseCode'],c['courseCode'] in got)
         print('爬取课程信息中({}/{})'.format(tmp,maxx))
     else :
       for c in map[key]:
@@ -322,7 +371,7 @@ def GetSelectedList():#得到此学期目前的课表
   for c in list:
     glb.got[c['courseCode']]=course(c['courseName'],'本学期',c['courseCode'],True,c)
   for a,each in glb.got.items():
-    for qwq in each.inf:
+    for qwq in each.imf:
       glb.table.set1(qwq.t)
 
 def PrintCourseList(IgnoreGetable):#输出课程列表
@@ -345,17 +394,31 @@ def PrintNeed():
 
 def ChangeNeed():
   while 1:
-    id=input('请输入您要取反的课程代码（注意不要与id混淆），退出输入exit：')
+    id=input('请输入您要取反的课程代码（注意不要与id混淆--代码是一种课程，id是比它小的某一节具体的科），退出输入exit：')
     if id=='exit':
       break
     if id not in glb.all:
       print('没有检索到该课程')
+    else:
+      print(glb.all[id])
     if id in glb.nl:
       glb.nl.remove(id)
       print('已删除代码为{}的课程'.format(id))
     else :
       glb.nl.append(id)
       print('已添加代码为{}的课程'.format(id))
+
+def ChangeSelNeed():
+  while 1:
+    id=input('请输入您要取反的课程id（注意不要与代码混淆--代码是一种课程，id是比它小的某一节具体的课），退出输入exit：')
+    if id=='exit':
+      break
+    if id in glb.nsl:
+      glb.nsl.remove(id)
+      print('已删除id为{}的课程'.format(id))
+    else :
+      glb.nsl.add(id)
+      print('已添加id为{}的课程'.format(id))
 
 def autoSelect():
   s=input('请输入必修课的学期（例如：2S）')
@@ -366,36 +429,36 @@ def autoSelect():
   PrintNeed()
 
 def _cmp(a,b):
-  return len(glb.all[a].inf)<len(glb.all[b].inf)
+  return len(glb.all[a].imf)<len(glb.all[b].imf)
 
 def printNsl():
   print('得到可行的选课方案：')
   for id in glb.nsl:
-    print(glb.allinf[id].getLdoc())
+    print(glb.allimf[id].getLdoc())
   print(glb.table.getdoc())
-  a=input('输入0则停止搜索，继续搜索请输入1：')
+  a=input('输入0则选用此方案，继续搜索请输入1：')
   if a=='0':
     return 1
   else:
     return 0
 
-def dfs(_now,siz):
-  if _now==siz:
-    return printNsl()
-  now=glb.all[glb.nl[_now]]
-  for eachinf in now.inf:
-    if glb.table.set1(eachinf.t)==1:
-      glb.nsl.add(eachinf.id)
-      if dfs(_now+1,siz)==1:
-        return 1
-      glb.table.set0(eachinf.t)
-    else:
-      return 0
-
 def autoArrange():
+  def dfs(_now,siz):
+    if _now==siz:
+      return printNsl()
+    now=glb.all[glb.nl[_now]]
+    for eachimf in now.imf:
+      if glb.table.set1(eachimf.t)==1:
+        glb.nsl.add(eachimf.id)
+        if dfs(_now+1,siz)==1:
+          return 1
+        glb.nsl.remove(eachimf.id)
+        glb.table.set0(eachimf.t)
+      else:
+        return 0
   sorted(glb.nl,key=cmp_to_key(_cmp))
   dfs(0,len(glb.nl))
-  print('搜索完毕。')
+  print('搜索完毕')
 
 def SetBusyTime():
   while 1:
@@ -414,23 +477,29 @@ def SetBusyTime():
       glb.table.set0([t(s[1:6])])
 
 def autoRob():
+  print(glb.nsl)
   while 1:
-    a=input('几毫秒抢一次？\n')
-    if a<random.random()*6000:
+    a=float(input('几秒抢一次？\n'))
+    if a<random.random()*6:
       print('太小了，不合适吧~再输一个: ')
-  a/=1000
+    else:
+      break
+  nsl=list(glb.nsl)
   while 1:
-    for id in glb.nsl:
+    for id in nsl:
       data={
         'cttId':id,
         'needMaterial':'false'
       }
       url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/scSubmit',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
-      if url.json()['success']==1:
-        glb.nsl.remove(id)
-        print('抢到了一门课\n{}'.format(glb.allinf[id]))
+      if 'success' in url.json():
+        if url.json()['success']==1:
+          nsl.remove(id)
+          print('抢到了,id:{}\n还有：{}'.format(id,nsl))
+        else:
+          print('id {} : {}'.format(id,url.json()))
       time.sleep(a)
-    if len(glb.nsl)==0:
+    if len(nsl)==0:
       print('全部抢完了')
       break
 
@@ -441,14 +510,16 @@ def menu():
   1.输出可选课程。
   2.输出所有课程。
   3.输出已选课程。
-  4.查看待选名单。
-  5.修改待选名单。
+  4.查看待排课程名单。
+  5.修改待排课程。
   6.自动选择必修课。
   7.设置不上课时间。
   8.自动排课。
   9.自动抢课。
-  10.手动保存待选名单。
+  10.手动保存待排课程。
   11.输出安排时间表。
+  12.修改待选名单。
+  
   >>>""")
   if choose=='1':
     PrintCourseList(1)
@@ -467,23 +538,32 @@ def menu():
   elif choose=='8':
     autoArrange()
   elif choose=='9':
-    print('因政策原因，本功能暂不开放')
+    #print('因政策原因，本功能暂不开放')
+    autoRob()
   elif choose=='10':
     print('请把以下内容保存在一个你喜欢的txt文件里，下次进入菜单时选择5粘贴')
     for each in glb.nl:
       print(each)
+    print("exit")
   elif choose=='11':
     print(glb.table.getdoc())
+  elif choose=='12':
+    ChangeSelNeed()
   else:
     print('输入错误，请重新输入。')
 
 def main():
-  print('温馨提示：请挂上vpn。本程序没有鲁棒性，不合法（或合法）的输入极易导致崩溃，请慎重输入。')
+  print('温馨提示：请挂上vpn。本程序没有鲁棒性，不合法（或合法）的输入极易导致崩溃，请慎重输入。（如果报错了可以多试几遍，如果登录部分一直报错但链接是200，那么可能是需要输入验证码，登上学校官网再退出即可）')
   GetUserImf()
-  print('爬取信息中……')
-  url=GetCourseText()
-  GetCourseList(url.json()["tsCourses"])
-  GetSelectedList()
+  if readToInit()==0:
+    print('爬取信息中……')
+    url=GetCourseText()
+    GetCourseList(url.json()["tsCourses"])
+    GetSelectedList()
+    save()
+    print("已自动保存信息")
+  else :
+    print("已从文件中获取到选课信息")
   while 1:
     menu()
 
