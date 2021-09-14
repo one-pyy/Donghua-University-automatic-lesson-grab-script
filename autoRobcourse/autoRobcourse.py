@@ -11,51 +11,76 @@ import os
 from functools import cmp_to_key
 from prettytable import PrettyTable as pt
 import getPass
+import time
+from requests.adapters import HTTPAdapter
+import sys
+
+def geTime():
+  return time.strftime("%Y-%m-%d  %H:%M:%S",time.localtime())
 
 def glb():
   glb.nl=[]#needList
   glb.nsl=set()#needSelectList
-  glb.table=classTable()
   glb.imf : map
 
+def rd(name):
+  path="cache\\"+name+".pkl"
+  if not os.path.exists(path):
+    return None
+  with open(path,'rb') as file:
+    rq  = pickle.loads(file.read())
+  return rq
+
 def readToInit():
-  def read(name):
-    with open("cache\\"+name+".pkl",'rb') as file:
-      rq  = pickle.loads(file.read())
-    return rq
   if os.path.exists("cache\\imf.pkl"):
-    imf=read("imf")
-    if os.path.exists("cache\\imf.pkl") and imf['stuNo']==glb.imf['stuNo'] and glb.imf['turn']==glb.imf['turn']:
-      glb.cc=read('cc')
-      glb.ncc=read('ncc')
-      glb.all=read('all')
-      glb.allimf=read('allimf')
-      glb.got=read('got')
+    imf=rd("imf")
+    if imf['stuNo']==glb.imf['stuNo'] and glb.imf['turn']==glb.imf['turn']:
+      glb.cc=rd('cc')
+      glb.ncc=rd('ncc')
+      glb.all=rd('all')
+      glb.allimf=rd('allimf')
+      glb.got=rd('got')
+      glb.table=rd('table')
       return 1
   glb.cc={}#ChoosenCourse
   glb.ncc={}#NoChoosenCourse
   glb.all={}#allCourses
   glb.allimf={}#allCourseInf
   glb.got={}
+  glb.table=classTable()
   return 0
 
+def readAll():
+  if rd('nl')==None:
+    return
+  glb.nl=rd('nl')
+  glb.nsl=rd('nsl')
+
+def saveAll():
+  wr(glb.nl,'nl')
+  wr(glb.nsl,'nsl')
+
+def wr(things,name):
+  path="cache\\"+name+".pkl"
+  if not os.path.exists(path):
+    open(path, 'w').close()
+  output_hal = open(path, 'wb')
+  str = pickle.dumps(things)
+  output_hal.write(str)
+  output_hal.close()
+
 def save():
-  def wr(things,name):
-    path="cache\\"+name+".pkl"
-    if os.path.exists(path)!=True:
-      open(path, 'w').close()
-    output_hal = open(path, 'wb')
-    str = pickle.dumps(things)
-    output_hal.write(str)
-    output_hal.close()
   wr(glb.cc,"cc")
   wr(glb.ncc,"ncc")
   wr(glb.all,"all")
   wr(glb.allimf,"allimf")
   wr(glb.got,"got")
   wr(glb.imf,"imf")
+  wr(glb.table,'table')
 
 req=requests.session()
+req.mount('http://', requests.adapters.HTTPAdapter(max_retries=10))
+req.mount('https://', requests.adapters.HTTPAdapter(max_retries=10))
 
 class t:#单节课的单个时间
   def __init__(self,ls):
@@ -163,11 +188,11 @@ class course:#某种课的信息
   
   def _getInf(self):
     data={'courseCode':self.code}
-    url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/accessJudge',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
+    url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/accessJudge',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=15)
     if url.json()['success']==0:
       return 0
     data={'sEcho':'1&iColumns=10&sColumns=&iDisplayStart=0&iDisplayLength=-1&mDataProp_0=cttId&mDataProp_1=classNo&mDataProp_2=maxCnt&mDataProp_3=applyCnt&mDataProp_4=enrollCnt&mDataProp_5=priorMajors&mDataProp_6=techName&mDataProp_7=cttId&mDataProp_8=cttId&mDataProp_9=cttId&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1&bSortable_0=false&bSortable_1=false&bSortable_2=false&bSortable_3=false&bSortable_4=false&bSortable_5=false&bSortable_6=false&bSortable_7=false&bSortable_8=false&bSortable_9=false','courseCode':self.code}
-    url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initACC',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
+    url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initACC',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=15)
     courseList=url.json()['aaData']
     for each in courseList:
       if each['priorMajors'].count('延安')==0:#####
@@ -245,7 +270,7 @@ def getSalt():#找到藏着的密钥
     'Accept-Encoding':'gzip, deflate, br',
     'Accept-Language':'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6'
   }
-  url=req.get('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers)
+  url=req.get('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers,timeout=15)
   glb.salt=re.findall('(?<=pwdDefaultEncryptSalt = ").+?(?=")',url.text)[0]
   glb.lt=re.findall('(?<=name="lt" value=").+?(?=")',url.text)[0]
   glb.dllt=re.findall('(?<=name="dllt" value=").+?(?=")',url.text)[0]
@@ -285,7 +310,7 @@ def getCookie():
     '_eventId':glb._eventId,
     'rmShown':glb.rmShown
   }
-  url=req.post('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers,data=data)
+  url=req.post('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers,data=data,timeout=15)
 
 def GetUserImf():#获取用户信息，生成请求头，得到cookie
   glb.sNo=input("请输入您的学号: ")
@@ -318,7 +343,7 @@ def GetCourseText():#获取选课列表
     'studNo':glb.sNo,
     'scSemester':glb.seme
   }
-  url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initTSCourses',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
+  url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initTSCourses',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=15)
   print(url.status_code)
   if url.status_code != requests.codes.ok:
     ans=input("与教务处链接错误，请再试一次吧(是/否)")
@@ -338,7 +363,7 @@ def GetCourseList(list):#完善课程信息并进行分类
     map=list["tsCourseMapNoCagegory"]
     categorys=list['courseCategory']
     for category in categorys:
-      url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSCC',headers=glb.headers,data={'smallSort':category},cookies=req.cookies.get_dict())
+      url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSCC',headers=glb.headers,data={'smallSort':category},cookies=req.cookies.get_dict(),timeout=15)
       map[category]=url.json()['sccs']
     return map
   map=getCourseClass(list)
@@ -353,19 +378,19 @@ def GetCourseList(list):#完善课程信息并进行分类
       for c in map[key]:
         tmp+=1
         glb.cc[c['courseCode']]=course(c['courseName'],c['yearTerm'] if 'yearTerm' in c else "无推荐选修时间",c['courseCode'],c['courseCode'] in got)
-        print('爬取课程信息中({}/{})'.format(tmp,maxx))
+        print('\r爬取课程信息中({}/{})'.format(tmp,maxx),end='')
     else :
       for c in map[key]:
         tmp+=1
         glb.ncc[c['courseCode']]=course(c['courseName'],c['yearTerm'],c['courseCode'],c['courseCode'] in got)
-        print('爬取课程信息中({}/{})'.format(tmp,maxx))
+        print('\r爬取课程信息中({}/{})'.format(tmp,maxx),end='')
   glb.all=dict(**glb.ncc,**glb.cc)
 
 def GetSelectedList():#得到此学期目前的课表
   headers=glb.headers.copy()
   print('获取已选课程中……')
   headers['Referer']='http://jwgl.dhu.edu.cn/dhu/selectcourse/toSSC'
-  url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSelCourses',headers=headers,cookies=req.cookies.get_dict())
+  url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSelCourses',headers=headers,cookies=req.cookies.get_dict(),timeout=15)
   print('分析中……')
   list=url.json()['enrollCourses']+url.json()['selectedCourses']
   for c in list:
@@ -478,12 +503,7 @@ def SetBusyTime():
 
 def autoRob():
   print(glb.nsl)
-  while 1:
-    a=float(input('几秒抢一次？\n'))
-    if a<random.random()*6:
-      print('太小了，不合适吧~再输一个: ')
-    else:
-      break
+  print('60s抢一轮（抢的快了应该会出来验证码）')
   nsl=list(glb.nsl)
   while 1:
     for id in nsl:
@@ -491,18 +511,17 @@ def autoRob():
         'cttId':id,
         'needMaterial':'false'
       }
-      url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/scSubmit',headers=glb.headers,data=data,cookies=req.cookies.get_dict())
-      if 'success' in url.json():
-        if url.json()['success']==1:
-          nsl.remove(id)
-          print('抢到了,id:{}\n还有：{}'.format(id,nsl))
-        else:
-          print('id {} : {}'.format(id,url.json()))
-      time.sleep(a)
+      url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/scSubmit',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=15)
+      print(geTime(),end='   ')
+      if {'success':True} == url.json():
+        nsl.remove(id)
+        print('抢到了,id:{}\n还有：{}\n{}'.format(id,nsl,url.json()))
+      else:
+        print('id {} : {}'.format(id,url.json()))
     if len(nsl)==0:
       print('全部抢完了')
       break
-
+    time.sleep(60)
 def menu():
   choose=input("""
        目录
@@ -516,10 +535,10 @@ def menu():
   7.设置不上课时间。
   8.自动排课。
   9.自动抢课。
-  10.手动保存待排课程。
+  10.保存排课选课数据。
   11.输出安排时间表。
   12.修改待选名单。
-  
+  13.获取排课选课数据。
   >>>""")
   if choose=='1':
     PrintCourseList(1)
@@ -541,14 +560,15 @@ def menu():
     #print('因政策原因，本功能暂不开放')
     autoRob()
   elif choose=='10':
-    print('请把以下内容保存在一个你喜欢的txt文件里，下次进入菜单时选择5粘贴')
-    for each in glb.nl:
-      print(each)
-    print("exit")
+    saveAll()
   elif choose=='11':
     print(glb.table.getdoc())
   elif choose=='12':
     ChangeSelNeed()
+  elif choose=='13':
+    readAll()
+    print(glb.nl)
+    print(glb.nsl)
   else:
     print('输入错误，请重新输入。')
 
