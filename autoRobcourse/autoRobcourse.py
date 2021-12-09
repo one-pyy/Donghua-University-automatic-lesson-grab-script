@@ -271,7 +271,7 @@ def getSalt():#找到藏着的密钥
     'sec-ch-ua-mobile':'?0',
     'DNT':'1',
     'Upgrade-Insecure-Requests':'1',
-    'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.67',
+    'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36 Edg/96.0.1054.43',
     'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
     'Sec-Fetch-Site':'cross-site',
     'Sec-Fetch-Mode':'navigate',
@@ -321,10 +321,10 @@ def getCookie():
     '_eventId':glb._eventId,
     'rmShown':glb.rmShown
   }
-  url=req.post('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers,data=data,timeout=15)
+  req.post('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers,data=data,timeout=15)
+  print(req.cookies)
 
 def GetUserImf():#获取用户信息，生成请求头，得到cookie
-  
   glb.sNo=input("请输入您的学号: ")
   glb.sSec=getpass.getpass('请输入您的密码: ')
   glb.seme=input('输入选课学期（例如：20212022s 代表2021-2022学年 第2学期，a是第一学期）: ')
@@ -335,7 +335,7 @@ def GetUserImf():#获取用户信息，生成请求头，得到cookie
     'Accept':'application/json, text/javascript, */*; q=0.01',
     'DNT':'1',
     'X-Requested-With':'XMLHttpRequest',
-    'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.67',
+    'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36 Edg/96.0.1054.43',
     'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8',
     'Origin':'http://jwgl.dhu.edu.cn',
     'Referer':'http://jwgl.dhu.edu.cn/dhu/selectcourse/toSH',
@@ -344,7 +344,6 @@ def GetUserImf():#获取用户信息，生成请求头，得到cookie
   }
   print("登录中")
   getSalt()
-  getCookie()
   glb.imf={
     "stuNo":glb.sNo,
     "turn":glb.seme
@@ -410,16 +409,21 @@ def GetCourseList(list):#完善课程信息并进行分类
 
 def GetSelectedList():#得到此学期目前的课表
   headers=glb.headers.copy()
-  print('获取已选课程中……')
-  headers['Referer']='http://jwgl.dhu.edu.cn/dhu/selectcourse/toSSC'
-  url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSelCourses',headers=headers,cookies=req.cookies.get_dict(),timeout=15,)
-  print('分析中……')
-  list=url.json()['enrollCourses']+url.json()['selectedCourses']
-  for c in list:
-    glb.got[c['courseCode']]=course(c['courseName'],'本学期',c['courseCode'],True,c)
-  for a,each in glb.got.items():
-    for qwq in each.imf:
-      glb.table.set1(qwq.t)
+  while 1:
+    try:
+      print('获取已选课程中……')
+      headers['Referer']='http://jwgl.dhu.edu.cn/dhu/selectcourse/toSSC'
+      url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSelCourses',headers=headers,cookies=req.cookies.get_dict(),timeout=30,)
+      print('分析中……')
+      list=url.json()['enrollCourses']+url.json()['selectedCourses']
+      for c in list:
+        glb.got[c['courseCode']]=course(c['courseName'],'本学期',c['courseCode'],True,c)
+      for a,each in glb.got.items():
+        for qwq in each.imf:
+          glb.table.set1(qwq.t)
+      break
+    except Exception as exp:
+      print(exp.args)
 
 def PrintCourseList(IgnoreGetable):#输出课程列表
   printTime=int(input("是否输出课程时间安排（是 输入1/否 输入0）："))
@@ -442,8 +446,8 @@ def PrintNeed():
 
 def ChangeNeed():
   while 1:
-    id=input('请输入您要取反的课程代码（注意不要与id混淆--代码是一种课程，id是比它小的某一节具体的科），退出输入exit：')
-    if id=='exit':
+    id=input('请输入您要取反的课程代码（注意不要与id混淆--代码是一种课程，id是比它小的某一节具体的科），退出回车：')
+    if id=='':
       break
     if id not in glb.all:
       print('没有检索到该课程')
@@ -453,13 +457,16 @@ def ChangeNeed():
       glb.nl.remove(id)
       print('已删除代码为{}的课程'.format(id))
     else :
-      glb.nl.append(id)
-      print('已添加代码为{}的课程'.format(id))
+      if glb.all[id].getable==1:
+        glb.nl.append(id)
+        print('已添加代码为{}的课程'.format(id))
+      else :
+        print("该课程未开放选课")
 
 def ChangeSelNeed():
   while 1:
-    id=input('请输入您要取反的课程id（注意不要与代码混淆--代码是一种课程，id是比它小的某一节具体的课），退出输入exit：')
-    if id=='exit':
+    id=input('请输入您要取反的课程id（注意不要与代码混淆--代码是一种课程，id是比它小的某一节具体的课），退出回车：')
+    if id=='':
       break
     if id in glb.nsl:
       glb.nsl.remove(id)
@@ -514,7 +521,7 @@ def autoArrange():
         which=int(which)
         thisList=theList[which]
         while 1:
-          rg=input(f"一共有{len(thisList)}种排课方式，要显示哪些？(0,10,2即显示方案号 从0开始 小于10 步长为2 的课程，也就是0 2 4 6 8。回车则进入方案选择)")
+          rg=input(f"一共有{len(thisList)}种排课方式，要显示哪些？(0,10,2即显示方案号 从0开始 小于10 步长为2 的课程，也就是0 2 4 6 8。回车则回到方案选择)")
           if rg=='':
             break
           else:
@@ -529,21 +536,20 @@ def autoArrange():
                 print("\n\n")
             except Exception as exp:
               print(exp.args)
-            a=input('输入x则选用方案x，继续搜索请回车，退出自动排课请输入-1：')
+            a=input('输入x则选用排课方式x，回车则回到方案选择，退出自动排课输入-1，继续下一层搜索输入-2：')
             if a=="":
-              return 0
+              break
             elif a=='-1':
               return 1
+            elif a=="-2":
+              return 0
             else:
               a=int(a)
               glb.nsl=thisList[a][0]
               glb.table=thisList[a][1]
               return 1
   
-  def _cmp(a,b):
-    return len(glb.all[a].imf)<len(glb.all[b].imf)
-  sorted(glb.nl,key=cmp_to_key(_cmp))
-  toSelectList=[glb.all[each] for each in glb.nl]
+  toSelectList=sorted([glb.all[each] for each in glb.nl],key=lambda x:len(x.imf))
   for i in range(len(toSelectList)):
     nslList={}
     print(f'搜索不选{i}门课的课表中......')
@@ -555,8 +561,8 @@ def autoArrange():
 
 def SetBusyTime():
   while 1:
-    ip=input('请输入时间（输入exit退出）\n格式：增加还是删除（增加为1，删除为0） 星期几 从第几节课开始 到第几节课结束 从第几周开始 到第几周结束）\n例如：1 2 3 4 5 6代表：增加不想上课时间 —— 5-6周 周二的3-4节课\n')
-    if ip=='exit':
+    ip=input('请输入时间（回车退出）\n格式：增加还是删除（增加为1，删除为0） 星期几 从第几节课开始 到第几节课结束 从第几周开始 到第几周结束）\n例如：1 2 3 4 5 6代表：增加不想上课时间 —— 5-6周 周二的3-4节课\n')
+    if ip=='':
       break
     s=re.findall('\d+',ip)
     for i in range(0,6):
@@ -586,11 +592,11 @@ def autoRob():
           if {'success':True} == url.json():
             nsl.remove(id)
             print('抢到了,id:{}\n还有：{}\n{}'.format(id,nsl,url.json()))
-            break
           else:
             print('id {} : {}'.format(id,url.json()))
-        except Exception:
-          print('连接失败')
+          break
+        except Exception as exp:
+          print(exp.args)
           time.sleep(5)
       if len(nsl)==0:
         print('全部抢完了')
@@ -598,7 +604,7 @@ def autoRob():
     time.sleep(60)
 def menu():
   choose=input("""
-       目录
+       菜单
   
   1.输出可选课程。
   2.输出所有课程。
@@ -608,11 +614,10 @@ def menu():
   6.自动选择必修课。
   7.设置不上课时间。
   8.自动排课。
-  9.自动抢课。
-  10.保存排课选课数据。
-  11.输出安排时间表。
-  12.修改待选名单。
-  13.获取排课选课数据。
+  9.保存排课选课数据。
+  10.输出安排时间表。
+  11.修改待选名单。
+  12.获取排课选课数据。
   >>>""")
   if choose=='1':
     PrintCourseList(1)
@@ -630,15 +635,15 @@ def menu():
     SetBusyTime()
   elif choose=='8':
     autoArrange()
-  elif choose=='9':
+  elif choose=='42':
     autoRob()
-  elif choose=='10':
+  elif choose=='9':
     saveAll()
-  elif choose=='11':
+  elif choose=='10':
     print(glb.table.getdoc())
-  elif choose=='12':
+  elif choose=='11':
     ChangeSelNeed()
-  elif choose=='13':
+  elif choose=='12':
     readAll()
     print(glb.nl)
     print(glb.nsl)
