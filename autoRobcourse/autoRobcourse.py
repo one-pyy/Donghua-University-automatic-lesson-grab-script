@@ -6,7 +6,6 @@ import numpy as np
 import requests
 import time
 import os
-from functools import cmp_to_key
 from prettytable import PrettyTable as pt
 import getPass
 import time
@@ -14,6 +13,7 @@ from requests.adapters import HTTPAdapter
 import sys
 import copy
 import itertools
+import os
 
 def geTime():
   return time.strftime("%Y-%m-%d  %H:%M:%S",time.localtime())
@@ -652,6 +652,8 @@ def menu():
 
 def main():
   print('温馨提示：请挂上vpn。本程序没有鲁棒性，不合法（或合法）的输入极易导致崩溃，请慎重输入。（如果报错了可以多试几遍，如果登录部分一直报错但链接是200，那么可能是需要输入验证码，登上学校官网再退出即可）')
+  if not os.path.exists("cache"):
+    os.makedirs("cache")
   #with open("pass.txt","r") as passin:
     #sys.stdin = passin
   GetUserImf()
@@ -672,3 +674,4 @@ def main():
 if __name__=="__main__":
   glb()
   main()
+ 
