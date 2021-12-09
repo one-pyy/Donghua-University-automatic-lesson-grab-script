@@ -1,4 +1,3 @@
 # Donghua-University-automatic-lesson-grab-script
-要在文件夹下创建cache文件夹
-
+由于pyinstaller打包出来400M，就不传了...
 pip install -r requestments.txt
