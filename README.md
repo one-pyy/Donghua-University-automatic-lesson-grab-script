@@ -1,6 +1,2 @@
 # Donghua-University-automatic-lesson-grab-script
-只有粗略调试，实战可能要下学期开学
-
-自动排课不能抢课的抢课脚本
-
-加入了课程缓存功能
+要在文件夹下创建cache文件夹
