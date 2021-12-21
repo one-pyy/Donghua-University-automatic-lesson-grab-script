@@ -81,8 +81,8 @@ def save():
   #wr(glb.table,'table')
 
 req=requests.session()
-req.mount('http://', HTTPAdapter(max_retries=10))
-req.mount('https://', HTTPAdapter(max_retries=10))
+# req.mount('http://', HTTPAdapter(max_retries=10))
+# req.mount('https://', HTTPAdapter(max_retries=10))
 
 class t:#单节课的单个时间
   def __init__(self,ls):
@@ -117,7 +117,7 @@ class courseImfor:#某节课的信息
 
   @staticmethod
   def _getWeek(s):
-    a=re.findall("\d+",s)
+    a=re.findall("\\d+",s)
     return [int(a[0])-1,int(a[-1])]
 
   def __init__(self,map,got=0):
@@ -196,11 +196,11 @@ class course:#某种课的信息
     data={'courseCode':self.code}
     while 1:
       try:
-        url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/accessJudge',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=5)
+        url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/accessJudge',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=15)
         if url.json()['success']==0:
           return 0
         data={'sEcho':'1&iColumns=10&sColumns=&iDisplayStart=0&iDisplayLength=-1&mDataProp_0=cttId&mDataProp_1=classNo&mDataProp_2=maxCnt&mDataProp_3=applyCnt&mDataProp_4=enrollCnt&mDataProp_5=priorMajors&mDataProp_6=techName&mDataProp_7=cttId&mDataProp_8=cttId&mDataProp_9=cttId&iSortCol_0=0&sSortDir_0=asc&iSortingCols=1&bSortable_0=false&bSortable_1=false&bSortable_2=false&bSortable_3=false&bSortable_4=false&bSortable_5=false&bSortable_6=false&bSortable_7=false&bSortable_8=false&bSortable_9=false','courseCode':self.code}
-        url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initACC',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=5)
+        url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initACC',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=15)
         courseList=url.json()['aaData']
         for each in courseList:
           if each['priorMajors'].count('延安')==0:#####
@@ -262,7 +262,7 @@ class classTable:#dfs操作台
       s.add_row(w)
     return "'-'代表空闲，'#'代表有安排。\n{}".format(s)
 
-def getSalt():#找到藏着的密钥
+def singIn():
   headers={
     'Host':'cas.dhu.edu.cn',
     'Connection':'keep-alive',
@@ -314,14 +314,19 @@ def getCookie():
   }
   data={
     'username':glb.sNo,
-    'password':getPass.getCryptPass(glb.sSec,glb.salt),
+    'password':getPass.getCryptPass(glb.sSec,glb.salt),#找到藏着的密钥
     'lt':glb.lt,
     'dllt':glb.dllt,
     'execution':glb.execution,
     '_eventId':glb._eventId,
     'rmShown':glb.rmShown
   }
-  req.post('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers,data=data,timeout=15)
+  while 1:
+    try:
+      req.post('https://cas.dhu.edu.cn/authserver/login?service=http%3A%2F%2Fjwgl.dhu.edu.cn%2Fdhu%2FcasLogin',headers=headers,data=data,timeout=15)
+      break
+    except Exception as e:
+      print(e.args)
   print(req.cookies)
 
 def GetUserImf():#获取用户信息，生成请求头，得到cookie
@@ -343,7 +348,7 @@ def GetUserImf():#获取用户信息，生成请求头，得到cookie
     'Accept-Language':'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
   }
   print("登录中")
-  getSalt()
+  singIn()
   glb.imf={
     "stuNo":glb.sNo,
     "turn":glb.seme
@@ -356,7 +361,7 @@ def GetCourseText():#获取选课列表
   }
   while 1:
     try:
-      url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initTSCourses',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=5)
+      url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initTSCourses',headers=glb.headers,data=data,cookies=req.cookies.get_dict(),timeout=15)
       print(url.status_code)
       if url.status_code != requests.codes.ok:
         print("土豆服务器，重试中")
@@ -380,7 +385,7 @@ def GetCourseList(list):#完善课程信息并进行分类
     for category in categorys:
       while 1:
         try:
-          url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSCC',headers=glb.headers,data={'smallSort':category},cookies=req.cookies.get_dict(),timeout=5)
+          url=req.post('http://jwgl.dhu.edu.cn/dhu/selectcourse/initSCC',headers=glb.headers,data={'smallSort':category},cookies=req.cookies.get_dict(),timeout=15)
           map[category]=url.json()['sccs']
           break
         except Exception as exp:
@@ -550,6 +555,7 @@ def autoArrange():
               return 1
   
   toSelectList=sorted([glb.all[each] for each in glb.nl],key=lambda x:len(x.imf))
+  print(toSelectList)
   for i in range(len(toSelectList)):
     nslList={}
     print(f'搜索不选{i}门课的课表中......')
@@ -674,4 +680,5 @@ def main():
 if __name__=="__main__":
   glb()
   main()
- 
+  
+  #code.InteractiveConsole(globals()).interact("")
