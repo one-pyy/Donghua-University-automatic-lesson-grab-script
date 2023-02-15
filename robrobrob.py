@@ -9,7 +9,7 @@ import traceback
 id_list = [(131841, 263331, 263330)]
 #https://webproxy.dhu.edu.cn/http/446a5061214023323032323131446855152f7f4845a0b976a6a0aa1d0121c0/dhu/captcha/code
 
-url = "https://webproxy.dhu.edu.cn/http/446a5061214023323032323131446855152f7f4845a0b976a6a0aa1d0121c0/dhu"
+url = "http://webproxy.dhu.edu.cn/http/446a5061214023323032323131446855152f7f4845a0b976a6a0aa1d0121c0/dhu"
 headers = {
   'Accept': 'application/json, text/javascript, */*; q=0.01',
   'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -69,7 +69,6 @@ def get_space_num(course_code: int, tc_code: int) -> int:
         f'{url}/selectcourse/initACC?vpn-12-o1-jwgl.dhu.edu.cn',
         headers=dict(headers, Referer=f'{url}/selectcourse/toSH'),
         data=dict(cource_list_data, courseCode=course_code),
-        verify=False
       )
       js: List[Dict[str, Any]] = json.loads(response.text)['aaData']
       target = filter(lambda x: int(x['cttId']) == tc_code, js).__next__()
@@ -95,7 +94,6 @@ def del_cource(tc_code: int):
       f'{url}/selectcourse/cancelSC?vpn-12-o1-jwgl.dhu.edu.cn',
       headers=headers,
       data=data,
-      verify=False
     )
   except: 
     traceback.print_exc()
@@ -115,7 +113,6 @@ def enroll(tc_code: int):
         f'{url}/selectcourse/scSubmit?vpn-12-o1-jwgl.dhu.edu.cn',
         headers=dict(headers, Referer=f'{url}/selectcourse/toSH'),
         data=data,
-        verify=False
       )
       js=json.loads(response.text)
       if js['success']==True and "msg" not in js:
