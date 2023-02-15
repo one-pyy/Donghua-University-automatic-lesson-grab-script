@@ -69,6 +69,7 @@ def get_space_num(course_code: int, tc_code: int) -> int:
         f'{url}/selectcourse/initACC?vpn-12-o1-jwgl.dhu.edu.cn',
         headers=dict(headers, Referer=f'{url}/selectcourse/toSH'),
         data=dict(cource_list_data, courseCode=course_code),
+        verify=False
       )
       js: List[Dict[str, Any]] = json.loads(response.text)['aaData']
       target = filter(lambda x: int(x['cttId']) == tc_code, js).__next__()
@@ -94,6 +95,7 @@ def del_cource(tc_code: int):
       f'{url}/selectcourse/cancelSC?vpn-12-o1-jwgl.dhu.edu.cn',
       headers=headers,
       data=data,
+      verify=False
     )
   except: 
     traceback.print_exc()
@@ -113,6 +115,7 @@ def enroll(tc_code: int):
         f'{url}/selectcourse/scSubmit?vpn-12-o1-jwgl.dhu.edu.cn',
         headers=dict(headers, Referer=f'{url}/selectcourse/toSH'),
         data=data,
+        verify=False
       )
       js=json.loads(response.text)
       if js['success']==True and "msg" not in js:
