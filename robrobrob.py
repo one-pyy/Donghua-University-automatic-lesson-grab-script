@@ -74,6 +74,8 @@ def get_space_num(course_code: int, tc_code: int) -> int:
       target = filter(lambda x: int(x['cttId']) == tc_code, js).__next__()
       remaining_quota = target['maxCnt']-target['enrollCnt']
       return remaining_quota
+    except KeyboardInterrupt:
+      raise
     except:
       if response is not None:
         print(response.text)
